@@ -5,6 +5,7 @@ from collections import defaultdict
 import math
 import os
 import hashlib
+import json
 
 import numpy as np
 import torch
@@ -320,12 +321,11 @@ class DirectoryDataset:
         caption_files = []
         mask_files = []
         for file in files:
-            if not file.is_file() or file.suffix == '.txt' or file.suffix == '.npz':
+            if not file.is_file() or file.suffix == '.txt' or file.suffix == '.npz' or file.suffix == '.json':
                 continue
             image_file = file
             caption_file = image_file.with_suffix('.txt')
             if not os.path.exists(caption_file):
-                logger.warning(f'Image file {image_file} does not have corresponding caption file.')
                 caption_file = ''
             image_files.append(str(image_file))
             caption_files.append(str(caption_file))
@@ -401,20 +401,37 @@ class DirectoryDataset:
         directory_config.setdefault('num_repeats', dataset_config.get('num_repeats', 1))
 
     def _metadata_map_fn(self):
+        captions_file = self.path / 'captions.json'
+        if captions_file.exists():
+            with open(captions_file) as f:
+                caption_data = json.load(f)
+        else:
+            caption_data = None
+
         def fn(example):
             # batch size always 1
             caption_file = example['caption_file'][0]
             image_file = example['image_file'][0]
-            if not caption_file:
-                caption = ''
-            else:
+            captions = None
+            if caption_data is not None:
+                captions = caption_data.get(Path(image_file).name, None)
+                if captions is None:
+                    logger.warning(f'Image file {image_file} does not have an entry in captions.json')
+                else:
+                    assert isinstance(captions, list), 'captions.json must contain lists of captions'
+            if captions is None and caption_file:
                 with open(caption_file) as f:
-                    caption = f.read().strip()
-            if self.directory_config['shuffle_tags']:
-                tags = [tag.strip() for tag in caption.split(',')]
-                random.shuffle(tags)
-                caption = ', '.join(tags)
-            caption = self.directory_config['caption_prefix'] + caption
+                    captions = [f.read().strip()]
+            if captions is None:
+                captions = ['']
+                logger.warning(f'Cound not find caption for {image_file}. Using empty caption.')
+            for i, caption in enumerate(captions):
+                if self.directory_config['shuffle_tags']:
+                    tags = [tag.strip() for tag in caption.split(',')]
+                    random.shuffle(tags)
+                    caption = ', '.join(tags)
+                caption = self.directory_config['caption_prefix'] + caption
+                captions[i] = caption
             empty_return = {'image_file': [], 'mask_file': [], 'caption': [], 'ar_bucket': [], 'size_bucket': [], 'is_video': []}
 
             image_file = Path(image_file)
@@ -462,11 +479,12 @@ class DirectoryDataset:
             return {
                 'image_file': [str(image_file)],
                 'mask_file': [example['mask_file'][0]],
-                'caption': [[caption]],
+                'caption': [captions],
                 'ar_bucket': [ar_bucket],
                 'size_bucket': [size_bucket],
                 'is_video': [is_video]
             }
+
         return fn
 
     def _find_closest_ar_bucket(self, log_ar, frames, is_video):
