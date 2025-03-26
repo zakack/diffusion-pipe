@@ -74,8 +74,8 @@ class TextEmbeddingDataset:
     def __init__(self, te_dataset):
         self.te_dataset = te_dataset
         self.image_file_to_te_idx = defaultdict(list)
-        for i, example in enumerate(te_dataset):
-            self.image_file_to_te_idx[example['image_file']].append(i)
+        for i, image_file in enumerate(te_dataset['image_file']):
+            self.image_file_to_te_idx[image_file].append(i)
 
     def get_text_embeddings(self, image_file, caption_number):
         return self.te_dataset[self.image_file_to_te_idx[image_file][caption_number]]
@@ -132,7 +132,7 @@ class SizeBucketDataset:
             caching_batch_size=caching_batch_size,
         )
         iteration_order = []
-        for example in self.latent_dataset:
+        for example in self.latent_dataset.select_columns(['image_file', 'caption']):
             image_file = example['image_file']
             for i, caption in enumerate(example['caption']):
                 iteration_order.append((image_file, caption, i))
@@ -142,8 +142,8 @@ class SizeBucketDataset:
         shuffle_with_seed(iteration_order, 42)
         self.iteration_order = iteration_order
         self.image_file_to_latents_idx = {
-            example['image_file']: i
-            for i, example in enumerate(self.latent_dataset)
+            image_file: i
+            for i, image_file in enumerate(self.latent_dataset['image_file'])
         }
 
 
