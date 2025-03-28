@@ -552,9 +552,6 @@ if __name__ == '__main__':
         optimizer=get_optimizer,
         config=ds_config,
     )
-    if model_engine.is_pipe_parallel:
-        grid = model_engine.grid
-        model_engine.first_last_stage_group = dist.new_group(ranks=[grid.pp_group[0], grid.pp_group[-1]])
     model.model_engine = model_engine
 
     lr_scheduler = torch.optim.lr_scheduler.ConstantLR(optimizer, factor=1.0)

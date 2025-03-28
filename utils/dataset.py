@@ -968,9 +968,15 @@ class PipelineDataLoader:
         grid = model_engine.grid
 
         src_rank = grid.stage_to_global(0)
+        dest_rank = grid.stage_to_global(model_engine.num_stages - 1)
         assert src_rank in grid.pp_group
         target = target.to('cuda')  # must be on GPU to broadcast
-        dist.broadcast(tensor=target, src=src_rank, group=model_engine.first_last_stage_group)
+        # Trying to dist.broadcast() here can cause hangs or NCCL failures in certain cases. Unsure if it's an
+        # NCCL or PyTorch bug, or I'm doing something wrong. Direct send/recv bypasses the problem.
+        if model_engine.is_first_stage():
+            dist.send(target, dest_rank)
+        else:
+            dist.recv(target, src_rank)
         return target
 
     # Only the first and last stages in the pipeline pull from the dataloader. Parts of the code need
