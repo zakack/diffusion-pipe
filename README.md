@@ -86,7 +86,7 @@ For images, any image format that can be loaded by Pillow should work. For video
 See the [supported models doc](./docs/supported_models.md) for more information on how to configure each model, the options it supports, and the format of the saved LoRAs.
 
 ## Training
-**Start by reading through the config files in the examples directory.** Almost everything is commented, explaining what each setting does.
+**Start by reading through the config files in the examples directory.** Almost everything is commented, explaining what each setting does. [This config file](./examples/main_example.toml) is the main example with all of the comments. [This dataset config file](./examples/dataset.toml) has the documentation for the dataset options.
 
 Once you've familiarized yourself with the config file format, go ahead and make a copy and edit to your liking. At minimum, change all the paths to conform to your setup, including the paths in the dataset config file.
 
@@ -104,6 +104,7 @@ Please note that resuming from checkpoint uses the **config file on the command 
 A new directory will be created in ```output_dir``` for each training run. This contains the checkpoints, saved models, and Tensorboard metrics. Saved models/LoRAs will be in directories named like epoch1, epoch2, etc. Deepspeed checkpoints are in directories named like global_step1234. These checkpoints contain all training state, including weights, optimizer, and dataloader state, but can't be used directly for inference. The saved model directory will have the safetensors weights, PEFT adapter config JSON, as well as the diffusion-pipe config file for easier tracking of training run settings.
 
 ## Reducing VRAM requirements
+The [wan_14b_min_vram.toml](./examples/wan_14b_min_vram.toml) example file has all of these settings enabled.
 - Use AdamW8BitKahan optimizer:
   ```
   [optimizer]
@@ -117,6 +118,7 @@ A new directory will be created in ```output_dir``` for each training run. This 
 - Try the expandable_segments feature in the CUDA memory allocator:
   - ```PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True NCCL_P2P_DISABLE="1" NCCL_IB_DISABLE="1" deepspeed --num_gpus=1 train.py --deepspeed --config /home/you/path/to/config.toml```
   - I've seen this help a lot when training on video with multiple aspect ratio buckets.
+  - On my system, sometimes this causes random CUDA failures. If training gets through a few steps though, it will train indefinitely without failures. Very weird.
 - Use unsloth activation checkpointing: ```activation_checkpointing = 'unsloth'```
 
 ## Parallelism
