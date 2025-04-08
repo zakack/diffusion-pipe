@@ -362,6 +362,7 @@ if __name__ == '__main__':
                     1,
                     1,
                     1,
+                    1,
                 )
                 for i, item in enumerate(train_data):
                     latents = item['latents']
@@ -578,6 +579,7 @@ if __name__ == '__main__':
         model_engine.grid.get_data_parallel_world_size(),
         model_engine.train_micro_batch_size_per_gpu(),
         model_engine.gradient_accumulation_steps(),
+        config.get('image_micro_batch_size_per_gpu', model_engine.train_micro_batch_size_per_gpu()),
     )
     for eval_data in eval_data_map.values():
         eval_data.post_init(
@@ -585,6 +587,7 @@ if __name__ == '__main__':
             model_engine.grid.get_data_parallel_world_size(),
             config.get('eval_micro_batch_size_per_gpu', model_engine.train_micro_batch_size_per_gpu()),
             config['eval_gradient_accumulation_steps'],
+            config.get('image_eval_micro_batch_size_per_gpu', model_engine.train_micro_batch_size_per_gpu()),
         )
 
     # Might be useful because we set things in fp16 / bf16 without explicitly enabling Deepspeed fp16 mode.
