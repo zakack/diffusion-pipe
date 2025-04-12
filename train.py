@@ -403,6 +403,9 @@ if __name__ == '__main__':
         run_dir = os.path.join(config['output_dir'], datetime.now(timezone.utc).strftime('%Y%m%d_%H-%M-%S'))
         os.makedirs(run_dir, exist_ok=True)
         shutil.copy(args.config, run_dir)
+        shutil.copy(config['dataset'], run_dir)
+        for eval_dataset in config['eval_datasets']:
+            shutil.copy(eval_dataset['config'], run_dir)
     # wait for all processes then get the most recent dir (may have just been created)
     dist.barrier()
     if resume_from_checkpoint is True:  # No specific folder provided, use most recent
