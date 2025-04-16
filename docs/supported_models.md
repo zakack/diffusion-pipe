@@ -10,6 +10,7 @@
 |Lumina Image 2.0|✅    |✅              |❌                |
 |Wan2.1          |✅    |❌              |✅                |
 |Chroma          |✅    |✅              |✅                |
+|HiDream         |✅    |❌              |✅                |
 
 
 ## SDXL
@@ -189,3 +190,25 @@ flux_shift = true
 Chroma is a model that is architecturally modifed and finetuned from Flux Schnell. The modifications are significant enough that it has its own model type. Set transformer_path to the Chroma single model file, and set diffusers_path to either Flux Dev or Schnell Diffusers folder (the Diffusers model is needed for loading the VAE and text encoder).
 
 Chroma LoRAs are saved in ComfyUI format.
+
+## HiDream
+```
+[model]
+type = 'hidream'
+diffusers_path = '/data/imagegen_models/HiDream-I1-Full'
+llama3_path = '/data2/models/Meta-Llama-3.1-8B-Instruct'
+llama3_4bit = true
+dtype = 'bfloat16'
+transformer_dtype = 'float8'
+flux_shift = true
+```
+
+Only the Full version is tested. Dev and Fast likely will not work properly due to being distilled, and because you can't set the guidance value.
+
+**HiDream doesn't perform well at resolutions under 1024**. The model uses the same training objective and VAE as Flux, so the loss values are directly comparable between the two. When I compare with Flux, there is moderate degradation in the loss value at 768 resolution. There is severe degradation in the loss value at 512 resolution, and inference at 512 produces completely fried images.
+
+Due to how the Llama3 text embeddings are computed, the Llama3 text encoder must be kept loaded and its embeddings computed at runtime, rather than being pre-cached. Otherwise the cache would use an enormous amount of space on disk. This increases memory use, but you can have Llama3 in 4bit with essentially 0 measurable affect on validation loss.
+
+Without block swapping, you will need 48GB VRAM, or 2x24GB with pipeline parallelism. Block swapping may allow training on a single 24GB GPU but is not tested.
+
+HiDream LoRAs are saved in ComfyUI format.

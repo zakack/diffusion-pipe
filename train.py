@@ -8,6 +8,7 @@ import random
 import json
 import inspect
 from pathlib import Path
+from collections import defaultdict
 
 import toml
 import deepspeed
@@ -44,6 +45,24 @@ parser.add_argument('--master_port', type=int, default=29500, help='Master port 
 parser.add_argument('--dump_dataset', type=Path, default=None, help='Decode cached latents and dump the dataset to this directory.')
 parser = deepspeed.add_config_arguments(parser)
 args = parser.parse_args()
+
+
+class DummyOptimizer(torch.optim.Optimizer):
+    def __init__(self):
+        self.state = defaultdict(dict)
+        self.param_groups = []
+
+    def step(self, closure=None):
+        pass
+
+    def zero_grad(self, set_to_none: bool = True):
+        pass
+
+    def state_dict(self):
+        return {}
+
+    def load_state_dict(self, state_dict):
+        pass
 
 
 # Monkeypatch this so it counts all layer parameters, not just trainable parameters.
@@ -271,6 +290,9 @@ if __name__ == '__main__':
     elif model_type == 'chroma':
         from models import chroma
         model = chroma.ChromaPipeline(config)
+    elif model_type == 'hidream':
+        from models import hidream
+        model = hidream.HiDreamPipeline(config)
     else:
         raise NotImplementedError(f'Model type {model_type} is not implemented')
 
@@ -461,6 +483,9 @@ if __name__ == '__main__':
     parameters_to_train = [p for p in pipeline_model.parameters() if p.requires_grad]
 
     def get_optimizer(model_parameters):
+        if len(model_parameters) == 0:
+            return DummyOptimizer()
+
         optim_config = config['optimizer']
         optim_type = optim_config['type']
         optim_type_lower = optim_type.lower()

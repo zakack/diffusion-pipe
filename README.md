@@ -15,6 +15,8 @@ Currently supports SDXL, Flux, LTX-Video, HunyuanVideo (t2v), Cosmos, Lumina Ima
 - Easily add new models by implementing a single subclass
 
 ## Recent changes
+- 2025-04-15
+  - Support HiDream.
 - 2025-03-18
   - Add unsloth activation checkpointing. Reduces VRAM for a small performance hit.
   - Add partition_split option for manually controlling how layers are divided across multiple GPUs. Thanks @arczewski for the PR!
@@ -37,9 +39,6 @@ Currently supports SDXL, Flux, LTX-Video, HunyuanVideo (t2v), Cosmos, Lumina Ima
 - 2025-02-25
   - Support LoRA training on Wan2.1 t2v variants.
   - SDXL: debiased estimation loss, init from existing lora, and arbitrary caption length.
-- 2025-02-16
-  - SDXL supports separate learning rates for unet and text encoders. These are specified in the [model] table. See the supported models doc for details.
-  - Added full fine tuning support for SDXL.
 
 ## Windows support
 It will be difficult or impossible to make training work on native Windows. This is because Deepspeed only has [partial Windows support](https://github.com/microsoft/DeepSpeed/blob/master/blogs/windows/08-2024/README.md). Deepspeed is a hard requirement because the entire training script is built around Deepspeed pipeline parallelism. However, it will work on Windows Subsystem for Linux, specifically WSL 2. If you must use Windows I recommend trying WSL 2.
