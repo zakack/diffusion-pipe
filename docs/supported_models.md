@@ -200,14 +200,16 @@ llama3_path = '/data2/models/Meta-Llama-3.1-8B-Instruct'
 llama3_4bit = true
 dtype = 'bfloat16'
 transformer_dtype = 'float8'
-flux_shift = true
+max_llama3_sequence_length = 128
 ```
 
 Only the Full version is tested. Dev and Fast likely will not work properly due to being distilled, and because you can't set the guidance value.
 
 **HiDream doesn't perform well at resolutions under 1024**. The model uses the same training objective and VAE as Flux, so the loss values are directly comparable between the two. When I compare with Flux, there is moderate degradation in the loss value at 768 resolution. There is severe degradation in the loss value at 512 resolution, and inference at 512 produces completely fried images.
 
-Due to how the Llama3 text embeddings are computed, the Llama3 text encoder must be kept loaded and its embeddings computed at runtime, rather than being pre-cached. Otherwise the cache would use an enormous amount of space on disk. This increases memory use, but you can have Llama3 in 4bit with essentially 0 measurable affect on validation loss.
+The official inference code uses a max sequence length of 128 for all text encoders. You can change the sequence length of llama3 (which carries almost all the weight) by changing max_llama3_sequence_length. A value of 256 causes a slight increase in stabilized validation loss of the model before any training happens, so there is some quality degradation. If you have many captions longer than 128 tokens, it may be worth increasing this value, but this is untested. I would not increase it beyond 256.
+
+Due to how the Llama3 text embeddings are computed, the Llama3 text encoder must be kept loaded and its embeddings computed during training, rather than being pre-cached. Otherwise the cache would use an enormous amount of space on disk. This increases memory use, but you can have Llama3 in 4bit with essentially 0 measurable affect on validation loss.
 
 Without block swapping, you will need 48GB VRAM, or 2x24GB with pipeline parallelism. Block swapping may allow training on a single 24GB GPU but is not tested.
 

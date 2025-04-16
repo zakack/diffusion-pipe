@@ -22,9 +22,6 @@ from hi_diffusers.models.moe import MoEGate
 
 KEEP_IN_HIGH_PRECISION = ['norm', 'bias', 't_embedder', 'p_embedder', 'x_embedder', 'final_layer', 'gate']
 
-# TODO: remove
-TRUNCATE_SEQ_LEN = 128
-
 
 def time_shift(mu: float, sigma: float, t: torch.Tensor):
     return math.exp(mu) / (math.exp(mu) + (1 / t - 1) ** sigma)
@@ -38,10 +35,6 @@ def get_lin_function(x1: float = 256, y1: float = 0.5, x2: float = 4096, y2: flo
 
 class HiDreamPipeline(BasePipeline):
     name = 'hidream'
-    # TODO: all these are 128 in the official inference code. That seems way too short for a modern model that uses T5 and Llama 3. So set those to 512.
-    max_clip_sequence_length = 128
-    max_t5_sequence_length = 512
-    max_llama3_sequence_length = 512
 
     checkpointable_layers = [
         'TransformerWrapper',
@@ -139,53 +132,6 @@ class HiDreamPipeline(BasePipeline):
             return {'latents': latents}
         return fn
 
-    # Copy this from the official code and remove output_attentions=True, which is unneeded.
-    # Runs a bit faster and uses less memory when using SDPA instead of eager attention.
-    # def _get_llama3_prompt_embeds(
-    #     self,
-    #     prompt,
-    #     max_sequence_length: int = 128,
-    #     device=None,
-    #     dtype=None,
-    # ):
-    #     device = device or self._execution_device
-    #     dtype = dtype or self.text_encoder_4.dtype
-
-    #     prompt = [prompt] if isinstance(prompt, str) else prompt
-    #     batch_size = len(prompt)
-
-    #     text_inputs = self.tokenizer_4(
-    #         prompt,
-    #         padding="max_length",
-    #         max_length=min(max_sequence_length, self.tokenizer_4.model_max_length),
-    #         truncation=True,
-    #         add_special_tokens=True,
-    #         return_tensors="pt",
-    #     )
-    #     text_input_ids = text_inputs.input_ids
-    #     attention_mask = text_inputs.attention_mask
-    #     untruncated_ids = self.tokenizer_4(prompt, padding="longest", return_tensors="pt").input_ids
-
-    #     if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not torch.equal(text_input_ids, untruncated_ids):
-    #         removed_text = self.tokenizer_4.batch_decode(untruncated_ids[:, min(max_sequence_length, self.tokenizer_4.model_max_length) - 1 : -1])
-    #         logger.warning(
-    #             "The following part of your input was truncated because `max_sequence_length` is set to "
-    #             f" {min(max_sequence_length, self.tokenizer_4.model_max_length)} tokens: {removed_text}"
-    #         )
-
-    #     outputs = self.text_encoder_4(
-    #         text_input_ids.to(device),
-    #         attention_mask=attention_mask.to(device),
-    #         output_hidden_states=True,
-    #     )
-
-    #     prompt_embeds = outputs.hidden_states[1:]
-    #     prompt_embeds = torch.stack(prompt_embeds, dim=0)
-    #     _, _, seq_len, dim = prompt_embeds.shape
-
-    #     prompt_embeds = prompt_embeds.view(-1, batch_size, seq_len, dim)
-    #     return prompt_embeds
-
     def get_call_text_encoder_fn(self, text_encoder):
         if text_encoder == self.text_encoder:
             def fn(caption, is_video):
@@ -195,7 +141,6 @@ class HiDreamPipeline(BasePipeline):
                     self.tokenizer,
                     self.text_encoder,
                     prompt=caption,
-                    max_sequence_length=self.max_clip_sequence_length,
                     device=text_encoder.device,
                 )
                 return {'pooled_prompt_embeds_1': pooled_prompt_embeds_1}
@@ -207,7 +152,6 @@ class HiDreamPipeline(BasePipeline):
                     self.tokenizer_2,
                     self.text_encoder_2,
                     prompt=caption,
-                    max_sequence_length=self.max_clip_sequence_length,
                     device=text_encoder.device,
                 )
                 return {'pooled_prompt_embeds_2': pooled_prompt_embeds_2}
@@ -217,7 +161,6 @@ class HiDreamPipeline(BasePipeline):
                 assert not any(is_video)
                 t5_prompt_embeds = self._get_t5_prompt_embeds(
                     prompt=caption,
-                    max_sequence_length=self.max_t5_sequence_length,
                     device=text_encoder.device,
                 )
                 return {'t5_prompt_embeds': t5_prompt_embeds}
@@ -234,10 +177,12 @@ class HiDreamPipeline(BasePipeline):
         caption = inputs['caption']
         pooled_prompt_embeds = torch.cat([pooled_prompt_embeds_1, pooled_prompt_embeds_2], dim=-1)
 
+        max_llama3_sequence_length = self.model_config.get('max_llama3_sequence_length', 128)
+        max_llama3_sequence_length = min(max_llama3_sequence_length, self.tokenizer_4.model_max_length)
         text_inputs = self.tokenizer_4(
             caption,
             padding="max_length",
-            max_length=min(self.max_llama3_sequence_length, self.tokenizer_4.model_max_length),
+            max_length=max_llama3_sequence_length,
             truncation=True,
             add_special_tokens=True,
             return_tensors="pt",
@@ -246,10 +191,10 @@ class HiDreamPipeline(BasePipeline):
         llama_attention_mask = text_inputs.attention_mask
         untruncated_ids = self.tokenizer_4(caption, padding="longest", return_tensors="pt").input_ids
         if untruncated_ids.shape[-1] >= llama_input_ids.shape[-1] and not torch.equal(llama_input_ids, untruncated_ids):
-            removed_text = self.tokenizer_4.batch_decode(untruncated_ids[:, min(self.max_llama3_sequence_length, self.tokenizer_4.model_max_length) - 1 : -1])
+            removed_text = self.tokenizer_4.batch_decode(untruncated_ids[:, max_llama3_sequence_length - 1 : -1])
             logger.warning(
                 "The following part of your input was truncated because `max_sequence_length` is set to "
-                f" {min(self.max_llama3_sequence_length, self.tokenizer_4.model_max_length)} tokens: {removed_text}"
+                f" {max_llama3_sequence_length} tokens: {removed_text}"
             )
 
         bs, c, h, w = latents.shape
@@ -405,9 +350,6 @@ class InitialLayer(nn.Module):
     @torch.autocast('cuda', dtype=AUTOCAST_DTYPE)
     def forward(self, inputs):
         hidden_states, img_ids, timesteps, pooled_embeds, t5_prompt_embeds, llama3_prompt_embeds = inputs
-
-        t5_prompt_embeds = t5_prompt_embeds[:, :TRUNCATE_SEQ_LEN, :]
-        llama3_prompt_embeds = llama3_prompt_embeds[:, :, :TRUNCATE_SEQ_LEN, :]
 
         batch_size = hidden_states.shape[0]
         hidden_states_type = hidden_states.dtype
