@@ -615,7 +615,7 @@ if __name__ == '__main__':
             model_engine.grid.get_data_parallel_world_size(),
             config.get('eval_micro_batch_size_per_gpu', model_engine.train_micro_batch_size_per_gpu()),
             config['eval_gradient_accumulation_steps'],
-            config.get('image_eval_micro_batch_size_per_gpu', model_engine.train_micro_batch_size_per_gpu()),
+            config.get('image_eval_micro_batch_size_per_gpu', config.get('eval_micro_batch_size_per_gpu', model_engine.train_micro_batch_size_per_gpu())),
         )
 
     # Might be useful because we set things in fp16 / bf16 without explicitly enabling Deepspeed fp16 mode.
