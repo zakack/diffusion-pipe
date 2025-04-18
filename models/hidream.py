@@ -285,6 +285,7 @@ class HiDreamPipeline(BasePipeline):
         transformer.double_stream_blocks = None
         transformer.single_stream_blocks = None
         transformer.to('cuda')
+        self.text_encoder_4.to('cuda')
         transformer.double_stream_blocks = double_blocks
         transformer.single_stream_blocks = single_blocks
         self.prepare_block_swap_training()
