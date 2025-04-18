@@ -93,8 +93,8 @@ def set_config_defaults(config):
     model_config = config['model']
     model_dtype_str = model_config['dtype']
     model_config['dtype'] = DTYPE_MAP[model_dtype_str]
-    if 'transformer_dtype' in model_config:
-        model_config['transformer_dtype'] = DTYPE_MAP[model_config['transformer_dtype']]
+    if transformer_dtype := model_config.get('transformer_dtype', None):
+        model_config['transformer_dtype'] = DTYPE_MAP.get(transformer_dtype, transformer_dtype)
     model_config.setdefault('guidance', 1.0)
 
     if 'adapter' in config:

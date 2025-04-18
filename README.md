@@ -17,6 +17,7 @@ Currently supports SDXL, Flux, LTX-Video, HunyuanVideo (t2v), Cosmos, Lumina Ima
 ## Recent changes
 - 2025-04-18
   - Fix block swapping for HiDream. With ```blocks_to_swap = 24``` you can train rank 32 LoRA on a single 4090.
+  - Support nf4 quantization for HiDream. With nf4 transformer, you can train LoRA on a single 4090 even without block swapping. See supported models doc for how to enable.
 - 2025-04-15
   - Support HiDream.
 - 2025-03-18
