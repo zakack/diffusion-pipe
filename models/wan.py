@@ -3,6 +3,7 @@ import json
 import math
 import re
 import os.path
+from pathlib import Path
 sys.path.insert(0, os.path.join(os.path.abspath(os.path.dirname(__file__)), '../submodules/Wan2_1'))
 
 import torch
@@ -377,14 +378,27 @@ class WanPipeline(BasePipeline):
         ckpt_dir = self.model_config['ckpt_path']
         dtype = self.model_config['dtype']
 
+        # SkyReels V2 uses 24 FPS. There seems to be no better way to autodetect this.
+        if 'skyreels' in Path(ckpt_dir).name.lower():
+            skyreels = True
+            self.framerate = 24
+            # FPS is different so make sure to use a new cache dir
+            self.name = 'skyreels_v2'
+        else:
+            skyreels = False
+
         self.original_model_config_path = os.path.join(ckpt_dir, 'config.json')
         with open(self.original_model_config_path) as f:
             json_config = json.load(f)
         self.i2v = (json_config['model_type'] == 'i2v')
         self.flf2v = (json_config['model_type'] == 'flf2v')
         if self.i2v:
-            self.name = 'wan_i2v'
+            if skyreels:
+                self.name = 'skyreels_v2_i2v'
+            else:
+                self.name = 'wan_i2v'
         if self.flf2v:
+            assert not skyreels
             self.name = 'wan_flf2v'
         model_dim = json_config['dim']
         if not self.i2v and model_dim == 1536:
@@ -449,10 +463,17 @@ class WanPipeline(BasePipeline):
                 transformer_dtype=transformer_dtype,
             )
         else:
-            self.transformer = WanModel.from_pretrained(self.model_config['ckpt_path'], torch_dtype=dtype)
-            for name, p in self.transformer.named_parameters():
-                if not (any(x in name for x in KEEP_IN_HIGH_PRECISION)):
-                    p.data = p.data.to(transformer_dtype)
+            ckpt_path = Path(self.model_config['ckpt_path'])
+            with init_empty_weights():
+                self.transformer = WanModel.from_config(ckpt_path / 'config.json')
+            state_dict = {}
+            for shard in ckpt_path.glob('*.safetensors'):
+                with safetensors.safe_open(shard, framework="pt", device="cpu") as f:
+                    for key in f.keys():
+                        state_dict[key] = f.get_tensor(key)
+            for name, param in self.transformer.named_parameters():
+                dtype_to_use = dtype if any(keyword in name for keyword in KEEP_IN_HIGH_PRECISION) else transformer_dtype
+                set_module_tensor_to_device(self.transformer, name, device='cpu', dtype=dtype_to_use, value=state_dict[name])
 
         self.transformer.train()
         # We'll need the original parameter name for saving, and the name changes once we wrap modules for pipeline parallelism,
