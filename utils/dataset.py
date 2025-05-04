@@ -889,6 +889,12 @@ def split_batch(batch, pieces):
 # Updates epoch as soon as the final batch is returned (notably different from qlora-pipe).
 class PipelineDataLoader:
     def __init__(self, dataset, model_engine, gradient_accumulation_steps, model, num_dataloader_workers=2):
+        if len(dataset) == 0:
+            raise RuntimeError(
+                'Processed dataset was empty. Probably caused by rounding down for each size bucket.\n'
+                'Try decreasing the global batch size, or increasing num_repeats.\n'
+                f'The dataset config that triggered this error was:\n{dataset.dataset_config}'
+            )
         self.model = model
         self.dataset = dataset
         self.model_engine = model_engine
