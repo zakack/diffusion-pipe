@@ -186,6 +186,8 @@ class FluxPipeline(BasePipeline):
 
         self.diffusers_pipeline = diffusers.FluxPipeline.from_pretrained(self.model_config['diffusers_path'], torch_dtype=dtype, transformer=transformer)
 
+        self.is_flex2 = (self.transformer.x_embedder.weight.size(1) == 196)
+
         self.transformer.train()
         # We'll need the original parameter name for saving, and the name changes once we wrap modules for pipeline parallelism,
         # so store it in an attribute here. Same thing below if we're training a lora and creating lora weights.
@@ -276,7 +278,6 @@ class FluxPipeline(BasePipeline):
 
         # The following code taken and slightly modified from x-flux (https://github.com/XLabs-AI/x-flux/tree/main)
         bs, c, h, w = latents.shape
-        latents = rearrange(latents, "b c (h ph) (w pw) -> b (h w) (c ph pw)", ph=2, pw=2)
 
         if mask is not None:
             mask = mask.unsqueeze(1).expand((-1, c, -1, -1))  # make mask (bs, c, img_h, img_w)
@@ -316,16 +317,19 @@ class FluxPipeline(BasePipeline):
 
         x_1 = latents
         x_0 = torch.randn_like(x_1)
-        t_expanded = t.view(-1, 1, 1)
+        t_expanded = t.view(-1, 1, 1, 1)
         x_t = (1 - t_expanded) * x_1 + t_expanded * x_0
         target = x_0 - x_1
         guidance_vec = torch.full((x_t.shape[0],), float(self.model_config['guidance']), device=x_t.device, dtype=torch.float32)
 
-        features = (x_t, t5_embed, clip_embed, t, img_ids, txt_ids, guidance_vec), (target, mask)
+        if self.is_flex2:
+            x_t = F.pad(x_t, (0, 0, 0, 0, 0, 33))
+        x_t = rearrange(x_t, "b c (h ph) (w pw) -> b (h w) (c ph pw)", ph=2, pw=2)
+        target = rearrange(target, "b c (h ph) (w pw) -> b (h w) (c ph pw)", ph=2, pw=2)
 
         # We pass the target through the layers of the model in the features tuple, so that it matches the noisy input when we get to the
         # last pipeline parallel stage.
-        return features
+        return (x_t, t5_embed, clip_embed, t, img_ids, txt_ids, guidance_vec), (target, mask)
 
     def to_layers(self):
         transformer = self.transformer
