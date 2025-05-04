@@ -25,6 +25,9 @@ gradient_accumulation_steps = 1
 gradient_clipping = 1.0
 # Learning rate warmup.
 warmup_steps = 100
+# Force the learning rate to be this value, regardless of what the optimizer or anything else says.
+# Can be used to change learning rate even when resuming from checkpoint.
+#force_constant_lr = 1e-5
 
 # Block swapping is supported for Wan, HunyuanVideo, Flux, and Chroma. This value controls the number
 # of blocks kept offloaded to RAM. Increasing it lowers VRAM use, but has a performance penalty. The
