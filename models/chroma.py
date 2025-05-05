@@ -369,7 +369,9 @@ class InitialLayer(nn.Module):
             )
             # then and only then we could concatenate it together
             input_vec = torch.cat([timestep_guidance, modulation_index], dim=-1)
-            mod_vectors = self.distilled_guidance_layer(input_vec.requires_grad_(True))
+            mod_vectors = self.distilled_guidance_layer(input_vec)
+        # Need to force this to True for Deepspeed pipeline parallelism.
+        mod_vectors.requires_grad_(True)
 
         ids = torch.cat((txt_ids, img_ids), dim=1)
         pe = self.pe_embedder(ids)
