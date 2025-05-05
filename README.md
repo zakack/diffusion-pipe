@@ -63,9 +63,14 @@ conda create -n diffusion-pipe python=3.12
 conda activate diffusion-pipe
 ```
 
-Install nvcc: https://anaconda.org/nvidia/cuda-nvcc. Probably try to make it match the CUDA version that was installed on your system with PyTorch.
+Install PyTorch first. As of this writing (May 5, 2025), you need PyTorch 2.6.0 CUDA 12.4 version (or earlier) for flash attention to work:
+```
+pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu124
+```
 
-Install the dependencies:
+Install nvcc: https://anaconda.org/nvidia/cuda-nvcc. Probably try to make it match the CUDA version of PyTorch.
+
+Install the rest of the dependencies:
 ```
 pip install -r requirements.txt
 ```
