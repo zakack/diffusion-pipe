@@ -16,3 +16,6 @@
 [submodule "submodules/HiDream"]
 	path = submodules/HiDream
 	url = https://github.com/HiDream-ai/HiDream-I1
+[submodule "submodules/LTX_Video"]
+	path = submodules/LTX_Video
+	url = https://github.com/Lightricks/LTX-Video

@@ -15,6 +15,8 @@ Currently supports SDXL, Flux, LTX-Video, HunyuanVideo (t2v), Cosmos, Lumina Ima
 - Easily add new models by implementing a single subclass
 
 ## Recent changes
+- 2025-05-07
+  - Switch to official implementation of LTX-Video. Allows training the 13b LTX-Video model.
 - 2025-04-19
   - Add support for first-frame-last-frame Wan model. Credit to @kabachuha for the PR.
   - Add wandb support. Credit to @ecarmen16 for the PR.

@@ -64,9 +64,11 @@ diffusers_path = '/data2/imagegen_models/LTX-Video'
 # Point this to one of the single checkpoint files to load the transformer and VAE from it.
 single_file_path = '/data2/imagegen_models/LTX-Video/ltx-video-2b-v0.9.1.safetensors'
 dtype = 'bfloat16'
+# Can load the transformer in fp8.
+#transformer_dtype = 'float8'
 timestep_sample_method = 'logit_normal'
 ```
-You can train the more recent LTX-Video versions by using single_file_path. Note that you will still need to set diffusers_path to the original model folder (it gets the text encoder from here).
+You can train the more recent LTX-Video versions by using single_file_path. Note that you will still need to set diffusers_path to the original model folder (it gets the text encoder from here). Only t2i and t2v training is supported.
 
 LTX-Video LoRAs are saved in ComfyUI format.
 
