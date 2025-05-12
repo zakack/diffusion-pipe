@@ -428,6 +428,10 @@ class SDXLPipeline(BasePipeline):
         return []
 
     def configure_adapter(self, adapter_config):
+        if 'init_from_existing' in adapter_config:
+            # For this model, load_adapter_weights() both creates the LoRA and loads its weights.
+            return
+
         # Target all linear layers in the main blocks.
         self._add_adapter(adapter_config, self.unet, [self.unet.down_blocks, self.unet.mid_block, self.unet.up_blocks], state_dict_key_prefix='unet.')
         # Target all linear layers in the text encoder.

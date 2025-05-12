@@ -1,6 +1,7 @@
 import math
 import os.path
 from functools import partial
+from pathlib import Path
 
 import diffusers
 import torch
@@ -12,7 +13,7 @@ from safetensors import safe_open
 from safetensors.torch import save_file
 
 from models.base import BasePipeline, make_contiguous
-from utils.common import AUTOCAST_DTYPE, is_main_process
+from utils.common import AUTOCAST_DTYPE, is_main_process, load_state_dict
 from utils.offloading import ModelOffloader
 
 NUM_DOUBLE_BLOCKS = 19
@@ -203,12 +204,31 @@ class FluxPipeline(BasePipeline):
     def get_text_encoders(self):
         return [self.text_encoder, self.text_encoder_2]
 
+    def configure_adapter(self, adapter_config):
+        if 'init_from_existing' in adapter_config:
+            # For this model, load_adapter_weights() both creates the LoRA and loads its weights.
+            return
+
+        return super().configure_adapter(adapter_config)
+
     def save_adapter(self, save_dir, peft_state_dict):
         adapter_type = self.config['adapter']['type']
         if adapter_type == 'lora':
             self.save_lora_weights(save_dir, transformer_lora_layers=peft_state_dict)
         else:
             raise NotImplementedError(f'Adapter type {adapter_type} is not implemented')
+
+    def load_adapter_weights(self, adapter_path):
+        print(f'Loading adapter weights from path {adapter_path}')
+        safetensors_files = list(Path(adapter_path).glob('*.safetensors'))
+        if len(safetensors_files) == 0:
+            raise RuntimeError(f'No safetensors file found in {adapter_path}')
+        if len(safetensors_files) > 1:
+            raise RuntimeError(f'Multiple safetensors files found in {adapter_path}')
+        adapter_state_dict = load_state_dict(safetensors_files[0])
+        self.diffusers_pipeline.load_lora_weights(adapter_state_dict, adapter_name='default')
+        for name, p in self.transformer.named_parameters():
+            p.original_name = name
 
     def save_model(self, save_dir, diffusers_sd):
         diffusers_to_bfl_map = make_diffusers_to_bfl_map()
