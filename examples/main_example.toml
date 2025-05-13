@@ -110,6 +110,10 @@ rank = 32
 dtype = 'bfloat16'
 # You can initialize the lora weights from a previously trained lora.
 #init_from_existing = '/data/diffusion_pipe_training_runs/something/epoch50'
+# Experimental. Can fuse LoRAs into the base weights before training. Right now only for Flux.
+#fuse_adapters = [
+#    {path = '/data2/imagegen_models/loras/some_lora.safetensors', weight = 1.0}
+#]
 
 [optimizer]
 # AdamW from the optimi library is a good default since it automatically uses Kahan summation when training bfloat16 weights.

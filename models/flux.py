@@ -181,11 +181,18 @@ class FluxPipeline(BasePipeline):
                 print('Bypassing Flux guidance')
             bypass_flux_guidance(transformer)
 
+        self.diffusers_pipeline = diffusers.FluxPipeline.from_pretrained(self.model_config['diffusers_path'], torch_dtype=dtype, transformer=transformer)
+
+        if 'adapter' in self.config:
+            if fuse_adapters := self.config['adapter'].get('fuse_adapters', None):
+                print(f'Fusing adapters: {fuse_adapters}')
+                for fuse_adapter in fuse_adapters:
+                    self.load_adapter_weights(fuse_adapter['path'], fuse=True, fuse_weight=fuse_adapter.get('weight', 1.0))
+                    self.unload_lora_weights()
+
         for name, p in transformer.named_parameters():
             if not (any(x in name for x in KEEP_IN_HIGH_PRECISION) or name.startswith('proj_out') or name.startswith('norm_out') or p.ndim == 1):
                 p.data = p.data.to(transformer_dtype)
-
-        self.diffusers_pipeline = diffusers.FluxPipeline.from_pretrained(self.model_config['diffusers_path'], torch_dtype=dtype, transformer=transformer)
 
         self.is_flex2 = (self.transformer.x_embedder.weight.size(1) == 196)
 
@@ -218,17 +225,24 @@ class FluxPipeline(BasePipeline):
         else:
             raise NotImplementedError(f'Adapter type {adapter_type} is not implemented')
 
-    def load_adapter_weights(self, adapter_path):
+    def load_adapter_weights(self, adapter_path, fuse=False, fuse_weight=1.0):
         print(f'Loading adapter weights from path {adapter_path}')
-        safetensors_files = list(Path(adapter_path).glob('*.safetensors'))
-        if len(safetensors_files) == 0:
-            raise RuntimeError(f'No safetensors file found in {adapter_path}')
-        if len(safetensors_files) > 1:
-            raise RuntimeError(f'Multiple safetensors files found in {adapter_path}')
-        adapter_state_dict = load_state_dict(safetensors_files[0])
+        if adapter_path.endswith('.safetensors'):
+            safetensors_file = adapter_path
+        else:
+            safetensors_files = list(Path(adapter_path).glob('*.safetensors'))
+            if len(safetensors_files) == 0:
+                raise RuntimeError(f'No safetensors file found in {adapter_path}')
+            if len(safetensors_files) > 1:
+                raise RuntimeError(f'Multiple safetensors files found in {adapter_path}')
+            safetensors_file = safetensors_files[0]
+        adapter_state_dict = load_state_dict(safetensors_file)
         self.diffusers_pipeline.load_lora_weights(adapter_state_dict, adapter_name='default')
         for name, p in self.transformer.named_parameters():
             p.original_name = name
+
+        if fuse:
+            self.fuse_lora(lora_scale=fuse_weight)
 
     def save_model(self, save_dir, diffusers_sd):
         diffusers_to_bfl_map = make_diffusers_to_bfl_map()
