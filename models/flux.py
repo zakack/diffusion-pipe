@@ -76,7 +76,7 @@ BFL_TO_DIFFUSERS_MAP = {
 }
 
 
-KEEP_IN_HIGH_PRECISION = ['norm', 'bias', 'time_text_embed', 'context_embedder', 'x_embedder']
+KEEP_IN_HIGH_PRECISION = ['time_text_embed', 'context_embedder', 'x_embedder']
 
 
 def make_diffusers_to_bfl_map(num_double_blocks: int = NUM_DOUBLE_BLOCKS, num_single_blocks: int = NUM_SINGLE_BLOCKS) -> dict[str, tuple[int, str]]:
@@ -182,7 +182,7 @@ class FluxPipeline(BasePipeline):
             bypass_flux_guidance(transformer)
 
         for name, p in transformer.named_parameters():
-            if not (any(x in name for x in KEEP_IN_HIGH_PRECISION) or name.startswith('proj_out')):
+            if not (any(x in name for x in KEEP_IN_HIGH_PRECISION) or name.startswith('proj_out') or name.startswith('norm_out') or p.ndim == 1):
                 p.data = p.data.to(transformer_dtype)
 
         self.diffusers_pipeline = diffusers.FluxPipeline.from_pretrained(self.model_config['diffusers_path'], torch_dtype=dtype, transformer=transformer)
