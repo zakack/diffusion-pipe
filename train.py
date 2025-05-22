@@ -242,6 +242,17 @@ def get_prodigy_d(optimizer):
     return d / len(optimizer.param_groups)
 
 
+def _get_automagic_lrs(optimizer):
+    lrs = []
+    for group in optimizer.param_groups:
+        for p in group['params']:
+            state = optimizer.state[p]
+            lr = optimizer._get_lr(group, state)
+            lrs.append(lr)
+    lrs = torch.stack(lrs)
+    return lrs, lrs.mean()
+
+
 if __name__ == '__main__':
     apply_patches()
 
@@ -536,6 +547,9 @@ if __name__ == '__main__':
             klass = CPUOffloadOptimizer
             args.append(torch.optim.AdamW)
             kwargs['fused'] = True
+        elif optim_type_lower == 'automagic':
+            from optimizers import automagic
+            klass = automagic.Automagic
         else:
             import pytorch_optimizer
             klass = getattr(pytorch_optimizer, optim_type)
@@ -706,6 +720,10 @@ if __name__ == '__main__':
             if optimizer.__class__.__name__ == 'Prodigy':
                 prodigy_d = get_prodigy_d(optimizer)
                 tb_writer.add_scalar(f'train/prodigy_d', prodigy_d, step)
+            if optimizer.__class__.__name__ == 'Automagic':
+                lrs, avg_lr = _get_automagic_lrs(optimizer)
+                tb_writer.add_histogram(f'train/automagic_lrs', lrs, step)
+                tb_writer.add_scalar(f'train/automagic_avg_lr', avg_lr, step)
 
         if (config['eval_every_n_steps'] and step % config['eval_every_n_steps'] == 0) or (finished_epoch and config['eval_every_n_epochs'] and epoch % config['eval_every_n_epochs'] == 0):
             evaluate(model, model_engine, eval_dataloaders, tb_writer, step, config['eval_gradient_accumulation_steps'], disable_block_swap_for_eval)
