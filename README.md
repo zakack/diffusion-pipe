@@ -15,6 +15,9 @@ Currently supports SDXL, Flux, LTX-Video, HunyuanVideo (t2v), Cosmos, Lumina Ima
 - Easily add new models by implementing a single subclass
 
 ## Recent changes
+- 2025-05-22
+  - Add Automagic optimizer
+  - Support i2v training for LTX-Video. Thanks @GallenShao for the PR!
 - 2025-05-07
   - Switch to official implementation of LTX-Video. Allows training the 13b LTX-Video model.
 - 2025-04-19
@@ -37,10 +40,6 @@ Currently supports SDXL, Flux, LTX-Video, HunyuanVideo (t2v), Cosmos, Lumina Ima
     - See the example hunyuan_video.toml file for how to configure.
   - Reduced memory use of Wan by removing some forced casts to float32. I am able to measure a very small, but consistent increase in validation loss, so there is at least some decrease in quality. But the memory savings are large when training on videos, and it is likely worth it.
     - On the 14B t2v model, by using fp8 transformer, AdamW8bitKahan optimizer, and offloading most of the blocks (e.g. blocks_to_swap=32), you can (just barely) train 512x512x81 sized videos on a single 4090.
-- 2025-03-06
-  - Change LTX-Video saved LoRA format to ComfyUI format.
-  - Allow training more recent LTX-Video versions.
-  - Add support for the Chroma model. Highly experimental. See the supported models doc.
 
 ## Windows support
 It will be difficult or impossible to make training work on native Windows. This is because Deepspeed only has [partial Windows support](https://github.com/microsoft/DeepSpeed/blob/master/blogs/windows/08-2024/README.md). Deepspeed is a hard requirement because the entire training script is built around Deepspeed pipeline parallelism. However, it will work on Windows Subsystem for Linux, specifically WSL 2. If you must use Windows I recommend trying WSL 2.
