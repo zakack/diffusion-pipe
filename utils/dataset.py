@@ -32,6 +32,17 @@ def shuffle_with_seed(l, seed=None):
     random.setstate(rng_state)
 
 
+def shuffle_captions(captions: list[str], count: int = 0, delimiter: str = ', ', caption_prefix: str = '') -> list[str]:
+    if count == 0: return captions
+
+    def shuffle_caption(caption: str, delimiter: str = ", ") -> str:
+        split = caption.split(delimiter)
+        random.shuffle(split)
+        return delimiter.join(split)
+
+    return [caption_prefix + shuffle_caption(caption, delimiter) for caption in captions for _ in range(count)]
+
+
 def process_caption_fn(shuffle_tags=False, caption_prefix=''):
     def fn(example):
         with open(example['caption_file']) as f:
@@ -118,6 +129,7 @@ class SizeBucketDataset:
         os.makedirs(self.cache_dir, exist_ok=True)
         self.text_embedding_datasets = []
         self.num_repeats = self.directory_config['num_repeats']
+        self.shuffle_skip = max(directory_config.get('cache_shuffle_num', 0), 1) # Should be provided in DirectoryDataset
         if self.num_repeats <= 0:
             raise ValueError(f'num_repeats must be >0, was {self.num_repeats}')
 
@@ -134,7 +146,8 @@ class SizeBucketDataset:
         iteration_order = []
         for example in self.latent_dataset.select_columns(['image_file', 'caption']):
             image_file = example['image_file']
-            for i, caption in enumerate(example['caption']):
+            captions = example['caption']
+            for i, caption in enumerate([captions[i:i + self.shuffle_skip] for i in range(0, len(captions), self.shuffle_skip)]):
                 iteration_order.append((image_file, caption, i))
         # Shuffle again, since one media file can produce multiple training examples. E.g. video, or maybe
         # in the future data augmentation. Don't need to shuffle text embeddings since those are looked
@@ -161,9 +174,11 @@ class SizeBucketDataset:
         ret = self.latent_dataset[self.image_file_to_latents_idx[image_file]]
         if DEBUG:
             print(Path(image_file).stem)
+        offset = random.randrange(self.shuffle_skip)
+        caption_idx = (caption_number*self.shuffle_skip) + offset
         for ds in self.text_embedding_datasets:
-            ret.update(ds.get_text_embeddings(image_file, caption_number))
-        ret['caption'] = caption
+            ret.update(ds.get_text_embeddings(image_file, caption_idx))
+        ret['caption'] = caption[caption_idx]
         return ret
 
     def __len__(self):
@@ -270,6 +285,9 @@ class DirectoryDataset:
             self.resolutions = self._process_user_provided_resolutions(
                 directory_config.get('resolutions', dataset_config['resolutions'])
             )
+        self.shuffle = directory_config.get('cache_shuffle_num', dataset_config.get('cache_shuffle_num', 0))
+        self.directory_config['cache_shuffle_num'] = self.shuffle # Make accessible if it wasn't yet, for picking one out
+        self.shuffle_delimiter = directory_config.get('cache_shuffle_delimiter', dataset_config.get('cache_shuffle_delimiter', ", "))
         self.path = Path(self.directory_config['path'])
         self.mask_path = Path(self.directory_config['mask_path']) if 'mask_path' in self.directory_config else None
         # For testing. Default if a mask is missing.
@@ -427,13 +445,9 @@ class DirectoryDataset:
             if captions is None:
                 captions = ['']
                 logger.warning(f'Cound not find caption for {image_file}. Using empty caption.')
-            for i, caption in enumerate(captions):
-                if self.directory_config['shuffle_tags']:
-                    tags = [tag.strip() for tag in caption.split(',')]
-                    random.shuffle(tags)
-                    caption = ', '.join(tags)
-                caption = self.directory_config['caption_prefix'] + caption
-                captions[i] = caption
+            if self.directory_config['shuffle_tags'] and self.shuffle == 0: # backwards compatibility
+                self.shuffle = 1
+            captions = shuffle_captions(captions, self.shuffle, self.shuffle_delimiter, self.directory_config['caption_prefix'])
             empty_return = {'image_file': [], 'mask_file': [], 'caption': [], 'ar_bucket': [], 'size_bucket': [], 'is_video': []}
 
             image_file = Path(image_file)
