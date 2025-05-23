@@ -18,6 +18,7 @@ Currently supports SDXL, Flux, LTX-Video, HunyuanVideo (t2v), Cosmos, Lumina Ima
 - 2025-05-22
   - Add Automagic optimizer
   - Support i2v training for LTX-Video. Thanks @GallenShao for the PR!
+  - Support multiple shuffling of tags when caching text embeddings. Credit to @gitmylo for the PR.
 - 2025-05-07
   - Switch to official implementation of LTX-Video. Allows training the 13b LTX-Video model.
 - 2025-04-19
