@@ -313,6 +313,9 @@ if __name__ == '__main__':
     elif model_type == 'hidream':
         from models import hidream
         model = hidream.HiDreamPipeline(config)
+    elif model_type == 'sd3':
+        from models import sd3
+        model = sd3.SD3Pipeline(config)
     else:
         raise NotImplementedError(f'Model type {model_type} is not implemented')
 
