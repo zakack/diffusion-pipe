@@ -9,6 +9,9 @@ from models.base import BasePipeline, make_contiguous
 from utils.common import AUTOCAST_DTYPE
 
 
+KEEP_IN_HIGH_PRECISION = ['pos_embed', 'time_text_embed', 'context_embedder', 'norm_out', 'proj_out']
+
+
 def time_shift(mu: float, sigma: float, t: torch.Tensor):
     return math.exp(mu) / (math.exp(mu) + (1 / t - 1) ** sigma)
 
@@ -44,6 +47,10 @@ class SD3Pipeline(BasePipeline):
             transformer = diffusers.SD3Transformer2DModel.from_pretrained(diffusers_path, torch_dtype=dtype, subfolder='transformer')
         else:
             raise NotImplementedError()
+
+        for name, p in transformer.named_parameters():
+            if not (any(x in name for x in KEEP_IN_HIGH_PRECISION) or p.ndim == 1):
+                p.data = p.data.to(transformer_dtype)
 
         self.diffusers_pipeline.transformer = transformer
 
