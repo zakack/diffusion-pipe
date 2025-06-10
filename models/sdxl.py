@@ -583,7 +583,7 @@ class SDXLPipeline(BasePipeline):
             truncation=False,
             add_special_tokens=False,
             return_tensors="pt",
-        ).input_ids
+        ).input_ids.to(torch.int64)
         return input_ids
 
     def to_layers(self):
