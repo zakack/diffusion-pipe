@@ -1,0 +1,22 @@
+# Resolution settings.
+# Can adjust this to 1024 for image training, especially on 24gb cards.
+#resolutions = [[640,360]]
+resolutions = [1024]
+
+# Aspect ratio bucketing settings
+enable_ar_bucket = true
+min_ar = 0.5
+max_ar = 2.0
+num_ar_buckets = 5
+
+# Frame buckets images only
+frame_buckets = [1]
+
+# Mix of images and videos (at 33 and 60 frames long)
+#frame_buckets = [1,44,48,64,80]
+
+[[directory]]
+# Set this to where your dataset is
+path = '/workspace/data/name'
+#mask_path = '/workspace/data/name/masks'
+num_repeats = 10

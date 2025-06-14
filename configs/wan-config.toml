@@ -1,0 +1,56 @@
+# Dataset config file.
+output_dir = '/workspace/output'
+dataset = 'configs/wan-dataset.toml'
+
+# Training settings
+epochs = 300
+micro_batch_size_per_gpu = 1
+pipeline_stages = 1
+gradient_accumulation_steps = 1
+gradient_clipping = 1.0
+warmup_steps = 50
+
+# eval settings
+eval_every_n_epochs = 1
+eval_before_first_step = true
+eval_micro_batch_size_per_gpu = 1
+eval_gradient_accumulation_steps = 1
+
+# misc settings
+save_every_n_epochs = 1
+checkpoint_every_n_minutes = 30
+activation_checkpointing = true
+partition_method = 'parameters'
+save_dtype = 'bfloat16'
+caching_batch_size = 1
+steps_per_print = 1
+video_clip_mode = 'single_beginning'
+blocks_to_swap = 15
+
+[model]
+type = 'wan'
+ckpt_path = '/workspace/models/Wan2.1-T2V-14B'
+transformer_path = '/workspace/models/wan2.1_t2v_14B_bf16.safetensors'
+llm_path = '/workspace/models/umt5-xxl-enc-bf16.safetensors'
+dtype = 'bfloat16'
+transformer_dtype = 'float8'
+timestep_sample_method = 'logit_normal'
+
+[adapter]
+type = 'lora'
+rank = 32
+dtype = 'bfloat16'
+#init_from_existing = '/configs'
+
+[optimizer]
+type = 'adamw_optimi'
+lr = 5e-5
+betas = [0.9, 0.99]
+weight_decay = 0.01
+eps = 1e-8
+
+[monitoring]
+enable_wandb = true
+wandb_api_key = "xxxxxxx"
+wandb_tracker_name = 'wan'
+wandb_run_name = 'name'
