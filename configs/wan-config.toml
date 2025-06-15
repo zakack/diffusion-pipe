@@ -1,6 +1,6 @@
 # Dataset config file.
 output_dir = '/workspace/output'
-dataset = 'configs/wan-dataset.toml'
+dataset = '/workspace/configs/wan-dataset.toml'
 
 # Training settings
 epochs = 300
